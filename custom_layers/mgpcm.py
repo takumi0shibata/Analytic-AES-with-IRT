@@ -24,10 +24,10 @@ class MGPCM(layers.Layer):
             trainable=True
         )
 
-    def call(self, theta):
+    def call(self, theta, mask=True):
         beta = tf.pad(self.beta, [[0, 0], [1, 0]])
         beta = K.cumsum(beta, axis=-1)
-        if self.beta_mask:
+        if mask:
             beta = beta * self.beta_mask
 
         x = K.dot(theta, K.transpose(self.alpha))
@@ -35,7 +35,7 @@ class MGPCM(layers.Layer):
         x = K.repeat_elements(x, self.num_category, axis=-1)
         x = K.cumsum(x, axis=-1)
         x = x + beta
-        if self.inf_mask:
+        if mask:
             x = x + self.inf_mask
         x = K.softmax(x)
 
