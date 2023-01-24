@@ -110,7 +110,7 @@ class evaluator():
         self.calc_corr(y_true, y_pred)
 
 
-    def evaluate_from_2way(self, model, y_true_org, overall_range, min_score):
+    def evaluate_from_2way(self, model, y_true_org, overall_range, min_score, pred_opt='ex'):
         # Predict Scores
         y_pred_overall, y_pred_anaytic = model.predict(self.test_features_list)
 
@@ -119,8 +119,11 @@ class evaluator():
         y_pred_overall = np.round(y_pred_overall)
 
         # Rescale analytic scores
-        y_pred_anaytic = np.sum(y_pred_anaytic * np.arange(0, self.analytic_range), axis=-1)
-        y_pred_anaytic = np.round(y_pred_anaytic)
+        if pred_opt == 'ex':
+            y_pred_anaytic = np.sum(y_pred_anaytic * np.arange(0, self.analytic_range), axis=-1)
+            y_pred_anaytic = np.round(y_pred_anaytic)
+        elif pred_opt == 'argmax':
+            y_pred_anaytic = np.argmax(y_pred, axis=-1)
 
         # Compiled scores
         y_pred = np.concatenate([y_pred_overall, y_pred_anaytic], axis=1)
@@ -137,9 +140,9 @@ class evaluator():
 
 
     def print_results(self):
-        print('TEST_QWK:  mean -> {:.3f}, each item -> {}'.format(np.mean(self.qwk), np.round(self.qwk, 3)))
-        print('TEST_LWK:  mean -> {:.3f}, each item -> {}'.format(np.mean(self.lwk), np.round(self.lwk, 3)))
-        print('TEST_RMSE: mean -> {:.3f}, each item -> {}'.format(np.mean(self.rmse), np.round(self.rmse, 3)))
-        print('TEST_MAE:  mean -> {:.3f}, each item -> {}'.format(np.mean(self.mae), np.round(self.mae, 3)))
-        print('TEST_CORR: mean -> {:.3f}, each item -> {}'.format(np.mean(self.corr), np.round(self.corr, 3)))
+        print('TEST_QWK:  Mean -> {:.3f}, Each item -> {}'.format(np.mean(self.qwk), np.round(self.qwk, 3)))
+        print('TEST_LWK:  Mean -> {:.3f}, Each item -> {}'.format(np.mean(self.lwk), np.round(self.lwk, 3)))
+        print('TEST_RMSE: Mean -> {:.3f}, Each item -> {}'.format(np.mean(self.rmse), np.round(self.rmse, 3)))
+        print('TEST_MAE:  Mean -> {:.3f}, Each item -> {}'.format(np.mean(self.mae), np.round(self.mae, 3)))
+        print('TEST_CORR: Mean -> {:.3f}, Each item -> {}'.format(np.mean(self.corr), np.round(self.corr, 3)))
         print('-' * 100)

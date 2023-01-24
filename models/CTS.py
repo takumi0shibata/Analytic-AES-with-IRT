@@ -5,7 +5,7 @@ from custom_layers.zeromasking import ZeroMaskedEntries
 from custom_layers.attention import Attention
 
 
-def build_CTS(pos_vocab_size, maxnum, maxlen, readability_feature_count, linguistic_feature_count, configs, output_dim, embedding_weights=None):
+def build_CTS(vocab_size, maxnum, maxlen, readability_feature_count, linguistic_feature_count, configs, output_dim, embedding_weights=None):
     embedding_dim = configs.EMBEDDING_DIM
     dropout_prob = configs.DROPOUT
     cnn_filters = configs.CNN_FILTERS
@@ -16,7 +16,7 @@ def build_CTS(pos_vocab_size, maxnum, maxlen, readability_feature_count, linguis
     linguistic_input = layers.Input((linguistic_feature_count,), name='linguistic_input')
     readability_input = layers.Input((readability_feature_count,), name='readability_input')
 
-    x = layers.Embedding(output_dim=embedding_dim, input_dim=pos_vocab_size, input_length=maxnum*maxlen,
+    x = layers.Embedding(output_dim=embedding_dim, input_dim=vocab_size, input_length=maxnum*maxlen,
                             weights=embedding_weights, mask_zero=True)(input_essay)
     x = ZeroMaskedEntries()(x)
     x = layers.Dropout(dropout_prob)(x)
@@ -25,11 +25,11 @@ def build_CTS(pos_vocab_size, maxnum, maxlen, readability_feature_count, linguis
     x = layers.TimeDistributed(Attention())(x)
 
     x_list = [layers.LSTM(lstm_units, return_sequences=True)(x) for _ in range(output_dim)]
-    x_list = [Attention()(pos_hz_lstm) for pos_hz_lstm in x_list]
-    x_list = [layers.Concatenate()([pos_rep, linguistic_input, readability_input])
-                                 for pos_rep in x_list]
-    x_list = tf.concat([layers.Reshape((1, lstm_units + linguistic_feature_count + readability_feature_count))(pos_rep)
-                                 for pos_rep in x_list], axis=-2)
+    x_list = [Attention()(x) for x in x_list]
+    x_list = [layers.Concatenate()([rep, linguistic_input, readability_input])
+                                 for rep in x_list]
+    x_list = tf.concat([layers.Reshape((1, lstm_units + linguistic_feature_count + readability_feature_count))(rep)
+                                 for rep in x_list], axis=-2)
 
     final_preds = []
     for index, _ in enumerate(range(output_dim)):

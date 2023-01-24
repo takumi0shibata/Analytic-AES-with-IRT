@@ -24,16 +24,19 @@ def main():
     parser = argparse.ArgumentParser(description='Proposed_model')
     parser.add_argument('--prompt_id', type=int, default=1, help='prompt id of train/test essay set')
     parser.add_argument('--seed', type=int, default=12, help='set random seed')
-    parser.add_argument('--word_input', type=bool, default=True, help='word input or pos tag input')
+    parser.add_argument('--input', type=str, default='word', help='word or pos')
     parser.add_argument('--prediction_option', type=str, default='ex', help='set prediction option: ex or argmax')
     parser.add_argument('--latent_dim', type=int, default=1, help='set latent dim')
 
     args = parser.parse_args()
     id = args.prompt_id
     seed = args.seed
-    word = args.word_input
+    input_seq = args.input
     pred_opt = args.prediction_option
     dim = args.latent_dim
+    print('essay id: {}'.format(id))
+    print('seed: {}'.format(seed))
+    print('input: {}'.format(input_seq))
 
     ###################
     # Set Parameters
@@ -83,24 +86,24 @@ def main():
         'vocab_size': vocab_size
         }
 
-        if word:
+        if input_seq == 'word':
             word_vocab = read_word_vocab(read_configs)
             train_data, test_data = read_essays_words_cv(read_configs, word_vocab)
 
             embedd_dict, embedd_dim, _ = load_word_embedding_dict(embedding_path)
             embedd_matrix = build_embedd_table(word_vocab, embedd_dict, embedd_dim, caseless=True)
             embed_table = [embedd_matrix]
-        else:
+        elif input_seq == 'pos':
             pos_vocab = read_pos_vocab(read_configs)
             train_data, test_data = read_essays_pos_cv(read_configs, pos_vocab)
 
         max_sentlen = max(train_data['max_sentlen'], test_data['max_sentlen'])
         max_sentnum = max(train_data['max_sentnum'], test_data['max_sentnum'])
 
-        if word:
+        if input_seq == 'word':
             X_train = pad_hierarchical_text_sequences(train_data['words'], max_sentnum, max_sentlen)
             X_test = pad_hierarchical_text_sequences(test_data['words'], max_sentnum, max_sentlen)
-        else:
+        elif input_seq == 'pos':
             X_train = pad_hierarchical_text_sequences(train_data['pos_x'], max_sentnum, max_sentlen)
             X_test = pad_hierarchical_text_sequences(test_data['pos_x'], max_sentnum, max_sentlen)
 
@@ -132,11 +135,11 @@ def main():
         #################
         # Define Model
         #################
-        if word:
+        if input_seq == 'word':
             model = build_ProposedModel(train_features_list, configs, max_sentnum, max_sentlen,
                                         num_item, overall_range, len(word_vocab), dim,
                                         inf_mask, beta_mask, embed_table)
-        else:
+        elif input_seq == 'pos':
             model = build_ProposedModel(train_features_list, configs, max_sentnum, max_sentlen,
                                         num_item, overall_range, len(pos_vocab), dim,
                                         inf_mask, beta_mask)
@@ -146,7 +149,7 @@ def main():
         #################
         eval = evaluator(num_item, overall_range, item_mask, analytic_range, test_features_list, id)
         for epoch in range(EPOCHS):
-            print('Prompt ID: {}, SEED: {}, Word: {}, Dim: {}'.format(id, seed, word, dim))
+            print('Prompt ID: {}, Seed: {}, Input_seq: {}, Dim: {}'.format(id, seed, input_seq, dim))
             print('{} / {} EPOCHS'.format(epoch+1, EPOCHS))
             model.fit(x=train_features_list, y=Y_train, batch_size=BATCH_SIZE, epochs=1)
             eval.evaluate_from_prob(model, Y_test, min_score, predict_option=pred_opt)
@@ -183,10 +186,7 @@ def main():
     ###################
     # Save outputs
     ###################
-    if word:
-        output_path = 'outputs/Proposed/{}/'.format(seed) + pred_opt + '/word/'
-    else:
-        output_path = 'outputs/Proposed/{}/'.format(seed) + pred_opt + '/pos/'
+    output_path = 'outputs/Proposed/{}/{}/{}/'.format(seed, pred_opt, input_seq)
     os.makedirs(output_path, exist_ok=True)
     pd.DataFrame(cv_mean_qwk).to_csv(output_path + 'qwk{}{}.csv'.format(id, dim), header=None, index=None)
     pd.DataFrame(cv_mean_lwk).to_csv(output_path + 'lwk{}{}.csv'.format(id, dim), header=None, index=None)

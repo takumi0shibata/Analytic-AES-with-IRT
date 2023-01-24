@@ -20,14 +20,17 @@ nltk.download('averaged_perceptron_tagger')
 
 def main():
     parser = argparse.ArgumentParser(description='CTS_model')
-    parser.add_argument('--prompt_id', type=int, default=1, help='prompt id of train/test essay set')
+    parser.add_argument('--prompt_id', type=int, default=1, help='prompt id of essay set')
     parser.add_argument('--seed', type=int, default=12, help='set random seed')
-    parser.add_argument('--word_input', type=bool, default=True, help='word input or pos tag input')
+    parser.add_argument('--input', type=str, default='word', help='word or pos')
 
     args = parser.parse_args()
     id = args.prompt_id
     seed = args.seed
-    word = args.word_input
+    input_seq = args.input
+    print('essay id: {}'.format(id))
+    print('seed: {}'.format(seed))
+    print('input: {}'.format(input_seq))
 
     ###################
     # Set Parameters
@@ -78,24 +81,24 @@ def main():
         'vocab_size': vocab_size
         }
 
-        if word:
+        if input_seq == 'word':
             word_vocab = read_word_vocab(read_configs)
             train_data, test_data = read_essays_words_cv(read_configs, word_vocab)
 
             embedd_dict, embedd_dim, _ = load_word_embedding_dict(embedding_path)
             embedd_matrix = build_embedd_table(word_vocab, embedd_dict, embedd_dim, caseless=True)
             embed_table = [embedd_matrix]
-        else:
+        elif input_seq == 'pos':
             pos_vocab = read_pos_vocab(read_configs)
             train_data, test_data = read_essays_pos_cv(read_configs, pos_vocab)
 
         max_sentlen = max(train_data['max_sentlen'], test_data['max_sentlen'])
         max_sentnum = max(train_data['max_sentnum'], test_data['max_sentnum'])
 
-        if word:
+        if input_seq == 'word':
             X_train = pad_hierarchical_text_sequences(train_data['words'], max_sentnum, max_sentlen)
             X_test = pad_hierarchical_text_sequences(test_data['words'], max_sentnum, max_sentlen)
-        else:
+        elif input_seq == 'pos':
             X_train = pad_hierarchical_text_sequences(train_data['pos_x'], max_sentnum, max_sentlen)
             X_test = pad_hierarchical_text_sequences(test_data['pos_x'], max_sentnum, max_sentlen)
 
@@ -121,12 +124,12 @@ def main():
         #################
         # Define Model
         #################
-        if word:
+        if input_seq == 'word':
             model = build_CTS(len(word_vocab), max_sentnum, max_sentlen,
                                 X_train_readability.shape[1],
                                 X_train_linguistic_features.shape[1],
                                 configs, Y_train.shape[1], embed_table)
-        else:
+        elif input_seq == 'pos':
             model = build_CTS(len(pos_vocab), max_sentnum, max_sentlen,
                                 X_train_readability.shape[1],
                                 X_train_linguistic_features.shape[1],
@@ -137,7 +140,7 @@ def main():
         #################
         eval = evaluator(num_item, overall_range, item_mask, analytic_range, test_features_list, id)
         for epoch in range(EPOCHS):
-            print('Prompt ID: {}, SEED: {}, Word: {}'.format(id, seed, word))
+            print('Prompt ID: {}, Seed: {}, Input_seq: {}'.format(id, seed, input_seq))
             print('{} / {} EPOCHS'.format(epoch+1, EPOCHS))
             model.fit(x=train_features_list, y=Y_train, batch_size=BATCH_SIZE, epochs=1)
             eval.evaluate_from_reg(model, Y_test_org)
@@ -168,10 +171,7 @@ def main():
     ###################
     # Save outputs
     ###################
-    if word:
-        output_path = 'outputs/CTS/{}/word/'.format(seed)
-    else:
-        output_path = 'outputs/CTS/{}/pos/'.format(seed)
+    output_path = 'outputs/CTS/{}/{}/'.format(seed, input_seq)
     os.makedirs(output_path, exist_ok=True)
     pd.DataFrame(cv_mean_qwk).to_csv(output_path + 'qwk{}.csv'.format(id), header=None, index=None)
     pd.DataFrame(cv_mean_lwk).to_csv(output_path + 'lwk{}.csv'.format(id), header=None, index=None)
