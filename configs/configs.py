@@ -8,7 +8,6 @@ class Configs:
     EMBEDDING_PATH = 'embeddings/glove.6B.50d.txt'
     VOCAB_SIZE = 4000
     DATA_PATH = 'data/train_test_split/'
-    DATA_PATH2 = 'data/train_dev_test_split/'
     FEATURES_PATH = 'data/hand_crafted_v3.csv'
     READABILITY_PATH = 'data/allreadability.pickle'
     EPOCHS = 50
